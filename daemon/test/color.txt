@@ -1,0 +1,10 @@
+wait 6000
+key next
+wait 4000
+status 0x8
+wait 500
+snap test/c1.ppm
+status 0x14
+wait 500
+snap test/c2.ppm
+quit

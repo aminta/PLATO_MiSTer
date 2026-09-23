@@ -12,7 +12,8 @@
 //     --port N           TCP port (default from the OSD: 5004 or 8005)
 //     --sim              run without /dev/mem (for testing on a PC)
 //     --script FILE      (sim) run a test script: "wait MS", "type TEXT",
-//                        "key NAME", "snap FILE.ppm", "quit"
+//                        "key NAME", "snap FILE.ppm", "status N" (OSD
+//                        status bits), "quit"
 //     --verbose          log to stderr
 
 #include <errno.h>
@@ -159,6 +160,8 @@ public:
         Write32 (off + 4, head);
         Write32 (CTL_HEAD, head);
     }
+
+    void SimStatus (u32 status) { Write32 (CTL_STATUS, status); }
 
     bool Snapshot (const char *fn) const
     {
@@ -636,9 +639,8 @@ int main (int argc, char **argv)
         if (STATUS_COLOR (status) != colorScheme)
         {
             colorScheme = STATUS_COLOR (status);
-            engine.SetDefaultColors (colorSchemes[colorScheme][0],
-                                     colorSchemes[colorScheme][1]);
-            // Takes effect on the next (re)connection, as in PTerm.
+            engine.ChangeDefaultColors (colorSchemes[colorScheme][0],
+                                        colorSchemes[colorScheme][1]);
         }
         keys.m_numpadArrows = STATUS_NUMPAD (status) == 0;
         keys.m_italian = STATUS_KBD (status) != 0;
@@ -727,6 +729,10 @@ int main (int argc, char **argv)
                 shm.Flush (engine.m_pixels, 0, 511);
                 shm.Snapshot (s.arg.c_str ());
                 logf ("snapshot %s", s.arg.c_str ());
+            }
+            else if (s.cmd == "status")
+            {
+                shm.SimStatus (strtoul (s.arg.c_str (), NULL, 0));
             }
             else if (s.cmd == "quit")
             {

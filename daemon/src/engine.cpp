@@ -326,6 +326,53 @@ void PlatoEngine::SetDefaultColors (u32 fg, u32 bg)
     m_defBg = bg | MAXALPHA;
 }
 
+// Swap the default colours in place (OSD colour change without a reset):
+// pixels and colour settings that use the old default foreground or
+// background get the new ones; colours chosen by the host are kept.
+void PlatoEngine::ChangeDefaultColors (u32 fg, u32 bg)
+{
+    const u32 oldFg = m_defFg, oldBg = m_defBg;
+
+    fg |= MAXALPHA;
+    bg |= MAXALPHA;
+    if (fg == oldFg && bg == oldBg)
+    {
+        return;
+    }
+
+    auto remap = [&] (u32 c) -> u32
+    {
+        if ((c | MAXALPHA) == oldFg) return fg;
+        if ((c | MAXALPHA) == oldBg) return bg;
+        return c;
+    };
+
+    for (int i = 0; i < 512 * 512; i++)
+    {
+        m_pixels[i] = remap (m_pixels[i]);
+    }
+    for (int w = 0; w < 10; w++)
+    {
+        if (cwswindow[w].bm != NULL)
+        {
+            for (int i = 0; i < 512 * 512; i++)
+            {
+                cwswindow[w].bm[i] = remap (cwswindow[w].bm[i]);
+            }
+        }
+    }
+    m_currentFg = remap (m_currentFg);
+    m_currentBg = remap (m_currentBg);
+    m_currentFgHost = remap (m_currentFgHost);
+    m_currentBgHost = remap (m_currentBgHost);
+    m_currentFgLocal = remap (m_currentFgLocal);
+    m_currentBgLocal = remap (m_currentBgLocal);
+    m_defFg = fg;
+    m_defBg = bg;
+    SetColors (m_currentFg, m_currentBg);
+    MarkDirty (0, 511);
+}
+
 // Equivalent of the PtermFrame constructor state initialization.
 void PlatoEngine::Reset (void)
 {

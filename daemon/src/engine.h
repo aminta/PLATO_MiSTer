@@ -33,6 +33,8 @@ public:
     void SetAscii (bool ascii) { m_ascii = ascii; }
     bool Ascii (void) const { return m_ascii; }
     void SetDefaultColors (u32 fg, u32 bg);
+    // Change the default colours now, recolouring what is on the screen.
+    void ChangeDefaultColors (u32 fg, u32 bg);
     void Reset (void);
 
     // Process one word from the host.  Returns true if the screen changed.
