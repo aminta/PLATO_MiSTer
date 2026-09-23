@@ -46,9 +46,7 @@ assign BUTTONS = 0;
 
 wire [1:0] ar = status[122:121];
 
-// The PLATO screen is 512x512 with square pixels.
-assign VIDEO_ARX = (!ar) ? 12'd1 : (ar - 1'd1);
-assign VIDEO_ARY = (!ar) ? 12'd1 : 12'd0;
+wire [2:0] scale = {1'b0, status[124:123]};
 
 `include "build_id.v"
 localparam CONF_STR = {
@@ -61,6 +59,7 @@ localparam CONF_STR = {
 	"O[9],Sound,On,Off;",
 	"-;",
 	"O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+	"O[124:123],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
 	"-;",
 	"R[0],Reset;",
 	"v,0;",
@@ -174,7 +173,25 @@ plato_ddr ddr
 assign CLK_VIDEO = clk_sys;
 assign CE_PIXEL  = 1;
 
-assign VGA_DE = ~(HBlank | VBlank);
+// Aspect ratio and integer scaling for the MiSTer scaler.
+// The PLATO screen is 512x512 with square pixels, so "Original" is 1:1.
+video_freak video_freak
+(
+	.CLK_VIDEO(CLK_VIDEO),
+	.CE_PIXEL(CE_PIXEL),
+	.VGA_VS(VSync),
+	.HDMI_WIDTH(HDMI_WIDTH),
+	.HDMI_HEIGHT(HDMI_HEIGHT),
+	.VGA_DE(VGA_DE),
+	.VIDEO_ARX(VIDEO_ARX),
+	.VIDEO_ARY(VIDEO_ARY),
+	.VGA_DE_IN(~(HBlank | VBlank)),
+	.ARX((!ar) ? 12'd1 : (ar - 1'd1)),
+	.ARY((!ar) ? 12'd1 : 12'd0),
+	.CROP_SIZE(12'd0),
+	.CROP_OFF(5'd0),
+	.SCALE(scale)
+);
 assign VGA_HS = HSync;
 assign VGA_VS = VSync;
 assign VGA_R  = R;

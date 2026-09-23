@@ -10,7 +10,8 @@ docker run --rm --platform linux/amd64 -v "$PWD":/build -w /build \
     --entrypoint bash theypsilon/quartus-lite-c5:17.0.2-heavy -c '
 set -e
 t0=$(date +%s)
-quartus_sh -t sys/build_id.tcl > build.log 2>&1
+printf "\`define BUILD_DATE \"%s\"" "$(date +%y%m%d)" > build_id.v
+: > build.log
 quartus_map PLATO -c PLATO >> build.log 2>&1
 quartus_fit --parallel=8 PLATO -c PLATO >> build.log 2>&1
 quartus_asm PLATO -c PLATO >> build.log 2>&1
