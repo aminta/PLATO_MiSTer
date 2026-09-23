@@ -12,6 +12,7 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "engine.h"
 #include "ppt.h"
@@ -542,6 +543,12 @@ void PlatoEngine::ptermDrawChar (int x, int y, int snum, int cnum)
         bpix = m_fgpix;
     }
 
+    static bool charlog = getenv ("PLATOD_CHARLOG") != NULL;
+    if (charlog && x >= 160 && x < 360 && y >= 200 && y < 340)
+    {
+        fprintf (stderr, "%llu C set %d char %02o at %d,%d wemode %d ccr %02x\n",
+                 (unsigned long long) time (NULL), snum, cnum, x, y, wemode, RAM[M_CCR]);
+    }
     ptermDrawCharInto (x, y, charp, fpix, bpix, mode, modexor);
 }
 
@@ -935,6 +942,31 @@ void PlatoEngine::ptermRestoreWindow (int d)
     }
 }
 
+void PlatoEngine::DumpCharset (const char *fn) const
+{
+    // 2 sets x 64 characters, 16 per row, each 8x16 pixels scaled 2x
+    const int cw = 8 * 2 + 4, ch = 16 * 2 + 4, cols = 16, rows = 8;
+    FILE *f = fopen (fn, "wb");
+    if (f == NULL) return;
+    fprintf (f, "P6\n%d %d\n255\n", cols * cw, rows * ch);
+    for (int y = 0; y < rows * ch; y++)
+    {
+        for (int x = 0; x < cols * cw; x++)
+        {
+            int c = (y / ch) * cols + x / cw;
+            int px = (x % cw) / 2, py = (y % ch) / 2;
+            u8 v = 40;
+            if (px < 8 && py < 16)
+            {
+                u16 col = plato_m23[c * 8 + px];
+                v = (col & (1 << (15 - py))) ? 255 : 0;
+            }
+            fputc (v, f); fputc (v * 9 / 16, f); fputc (0, f);
+        }
+    }
+    fclose (f);
+}
+
 // ----------------------------------------------------------------------------
 // Local messages on the dumb TTY (used for connection status)
 // ----------------------------------------------------------------------------
@@ -1004,6 +1036,12 @@ bool PlatoEngine::procPlatoWord (u32 d, bool ascii)
     supdelta = (deltay / 16) * 5;
 
     seq++;
+    static bool wordlog = getenv ("PLATOD_WORDLOG") != NULL;
+    if (wordlog)
+    {
+        fprintf (stderr, "%llu W %07o mode %d ccr %02x x %d y %d\n", (unsigned long long) time (NULL), d, mode >> 2, RAM[M_CCR],
+                 currentX, currentY);
+    }
     if (ascii)
     {
         if (m_dumbTty)

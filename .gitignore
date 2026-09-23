@@ -20,3 +20,4 @@ core/map.log
 core/fit.log
 core/asm.log
 core/sta.log
+daemon/test/sessions/

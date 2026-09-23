@@ -5,6 +5,9 @@
 // See pterm/pterm-license.txt.  ALTERED SOURCE VERSION.
 
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <string.h>
@@ -20,7 +23,8 @@ HostConnection::HostConnection ()
       m_state (Idle),
       m_mode (both),
       m_inPos (0),
-      m_pending (0)
+      m_pending (0),
+      m_aborted (false)
 {
 }
 
@@ -218,6 +222,13 @@ void HostConnection::SendData (const void *data, int len)
 void HostConnection::Assemble (void)
 {
     int platowd;
+    // Words still waiting from earlier reads: only these may be discarded
+    // by an abort marker.  PTerm assembles in a network thread while the
+    // display consumes the ring, so in practice it only drops output that
+    // the display had not caught up with; the words that arrive together
+    // with the marker are always shown.  Dropping them here lost "load
+    // mode" commands and garbled the display.
+    size_t old = m_ring.size ();
 
     for (;;)
     {
@@ -256,8 +267,16 @@ void HostConnection::Assemble (void)
         }
         else if (m_mode == niu && platowd == 2)
         {
-            // erase abort marker -- reset the ring to be empty
-            m_ring.clear ();
+            // erase abort marker -- discard the output from earlier reads
+            // that has not been displayed yet
+            if (getenv ("PLATOD_WORDLOG"))
+            {
+                fprintf (stderr, "%llu ABORT (dropped %d of %d words)\n",
+                         (unsigned long long) time (NULL), (int) old, (int) m_ring.size ());
+            }
+            m_ring.erase (m_ring.begin (), m_ring.begin () + old);
+            old = 0;
+            m_aborted = true;
         }
         m_ring.push_back (platowd);
     }

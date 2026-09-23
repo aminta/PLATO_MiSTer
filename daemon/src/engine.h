@@ -50,6 +50,9 @@ public:
     void LocalText (const char *s);
     void ptermFullErase (void);
 
+    // Debugging: write the loadable character sets (M2, M3) as a PPM image
+    void DumpCharset (const char *fn) const;
+
     // Periodic housekeeping: runs the Z80 when a PPT program is active.
     // "now_ms" is a monotonic millisecond clock.
     void Tick (uint64_t now_ms);

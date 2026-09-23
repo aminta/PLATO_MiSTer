@@ -60,7 +60,10 @@ public:
         return w;
     }
     int RingCount (void) const { return (int) m_ring.size (); }
+    // True once after an "abort output" marker (classic protocol)
+    bool TakeAbort (void) { bool a = m_aborted; m_aborted = false; return a; }
     void StoreWord (int word) { m_ring.push_back (word); }
+    void PushFront (int word) { m_ring.push_front (word); }
 
 private:
     int         m_fd;
@@ -72,6 +75,7 @@ private:
     std::vector<u8> m_out;          // bytes waiting to be sent
     std::deque<int> m_ring;         // assembled display words
     int         m_pending;
+    bool        m_aborted;          // an abort marker was received
 
     void Fail (const std::string &why);
     void Assemble (void);

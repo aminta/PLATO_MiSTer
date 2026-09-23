@@ -584,7 +584,7 @@ int main (int argc, char **argv)
         }
 
         // ---- Session replay ----
-        while (rep != NULL && now - repStart >= repNext)
+        while (rep != NULL && NowMs () >= repStart + repNext)
         {
             if (!repData.empty ())
             {
@@ -612,7 +612,22 @@ int main (int argc, char **argv)
                 sscanf (hex, "%2x", &v);
                 repData.push_back ((u8) v);
             }
-            repNext = ms;
+            // PLATOD_REPLAY_SPEED=n replays n times faster
+            static int speed = getenv ("PLATOD_REPLAY_SPEED") ? atoi (getenv ("PLATOD_REPLAY_SPEED")) : 1;
+            repNext = ms / (speed > 0 ? speed : 1);
+        }
+
+        // An abort marker also stops the GSW (PtermHostConnection::endGsw)
+        if (conn.TakeAbort () && (gswRouting || audio.GswActive ()))
+        {
+            // keep the display words already handed to the GSW path
+            std::deque<int> keep;
+            keep.swap (gswDisplay);
+            gswReset ();
+            for (auto it = keep.rbegin (); it != keep.rend (); ++it)
+            {
+                if (*it != C_GSWEND) conn.PushFront (*it);
+            }
         }
 
         // ---- Display data processing (PtermFrame::procDataLoop) ----
@@ -852,6 +867,10 @@ int main (int argc, char **argv)
             {
                 shm.Flush (engine.m_pixels, 0, 511);
                 shm.Snapshot (s.arg.c_str ());
+                if (getenv ("PLATOD_DUMPCHARS"))
+                {
+                    engine.DumpCharset ((s.arg + ".chars.ppm").c_str ());
+                }
                 logf ("snapshot %s", s.arg.c_str ());
             }
             else if (s.cmd == "touch")
