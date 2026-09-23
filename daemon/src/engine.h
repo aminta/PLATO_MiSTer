@@ -77,6 +77,7 @@ public:
     std::string m_name, m_group, m_system, m_station;
 
     bool        m_beep;             // set when the host asked for a beep
+    bool        m_touchEnabled;     // touch panel enabled by the host
 
 private:
     SendFn      m_send;

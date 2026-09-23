@@ -23,6 +23,11 @@ module plato_video
 
 	input             enable,       // frame buffer valid (platod running)
 
+	// mouse pointer overlay
+	input             cursor_show,
+	input       [8:0] cursor_x,
+	input       [8:0] cursor_y,
+
 	// line fetch request to the DDR reader
 	output reg        fetch_req,    // one clock pulse
 	output reg  [8:0] fetch_row,    // picture row to fetch (0 = top)
@@ -97,12 +102,22 @@ wire  [9:0] py   = vc - Y0[9:0];
 wire        hpic = (hc >= X0) && (hc < X0 + 512);
 wire        vpic = (vc >= Y0) && (vc < Y0 + 512);
 
+// Pointer: offset of this pixel from the pointer hot spot
+wire  [9:0] cdx  = {1'b0, px[8:0]} - {1'b0, cursor_x};
+wire  [9:0] cdy  = {1'b0, py[8:0]} - {1'b0, cursor_y};
+wire        cin  = cursor_show && !cdx[9] && !cdy[9] && cdx < 12 && cdy < 19;
+wire  [1:0] cpix;
+
+plato_arrow arrow (.row(cdy[4:0]), .col(cdx[3:0]), .pix(cpix));
+
+reg   [1:0] cur1;
 reg  [47:0] lb_q;
 reg         pic1, odd1;
 reg         hs1, vs1, hb1, vb1;
 
 always @(posedge clk) begin
 	lb_q <= linebuf[{py[0], px[8:1]}];
+	cur1 <= cin ? cpix : 2'b00;
 	pic1 <= hpic & vpic;
 	odd1 <= px[0];
 	hb1  <= ~hpic;
@@ -119,6 +134,8 @@ always @(posedge clk) begin
 	VBlank <= vb1;
 	if (!pic1) {R, G, B} <= 24'd0;
 	else if (!enable) {R, G, B} <= 24'h000040;  // dark blue: waiting for platod
+	else if (cur1[1]) {R, G, B} <= 24'hFFFFFF;   // pointer fill
+	else if (cur1[0]) {R, G, B} <= 24'h000000;   // pointer outline
 	else {R, G, B} <= odd1 ? lb_q[47:24] : lb_q[23:0];
 end
 

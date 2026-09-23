@@ -14,6 +14,7 @@
 // Written by platod:
 //   CTL_PHYS + 0x008  u32 alive     ALIVE_MAGIC while platod is running;
 //                                   until then the FPGA shows a blue screen
+//   CTL_PHYS + 0x00c  u32 flags     FLAG_* bits for the FPGA
 //
 //   CTL_PHYS + 0x100  event ring, EVT_SLOTS entries of 8 bytes:
 //                       u32 event   EVT_* type in [31:30], payload below
@@ -31,13 +32,16 @@
 #define CTL_STATUS      0x000
 #define CTL_HEAD        0x004
 #define CTL_ALIVE       0x008
+#define CTL_FLAGS       0x00c
 #define CTL_RING        0x100
+#define FLAG_TOUCH      0x01            // touch panel on: show the pointer
 #define ALIVE_MAGIC     0x504C4154u     // "PLAT"
 #define EVT_SLOTS       256
 
 #define EVT_TYPE(e)     (((e) >> 30) & 3)
 #define EVT_KEY         0       // payload [10:0] = MiSTer ps2_key
-#define EVT_MOUSE       1       // payload [24:0] = MiSTer ps2_mouse
+#define EVT_MOUSE       1       // left button change: [19] pressed,
+                                // [17:9] x, [8:0] row (0 = top)
 
 // OSD options (must match CONF_STR in PLATO.sv)
 #define STATUS_PORT(s)      (((s) >> 1) & 1)    // 0 = 5004 auto, 1 = 8005 ASCII

@@ -5,7 +5,7 @@
 //  (see daemon/src/shared.h for the memory contract):
 //
 //   * reads frame buffer lines (512 pixels x 32 bit) into the line buffer
-//   * reads the "alive" word written by platod once per frame
+//   * reads the "alive" word and the flags written by platod once per frame
 //   * writes keyboard events into an event ring and a header word with
 //     the OSD status bits and the event sequence number
 //
@@ -39,9 +39,12 @@ module plato_ddr
 	output reg  [8:0] lb_addr,
 	output reg [47:0] lb_data,
 	output reg        alive,
+	output reg [31:0] flags,        // from platod, see shared.h
 
 	// to the ARM
 	input      [10:0] ps2_key,
+	input             mouse_stb,
+	input      [31:0] mouse_evt,
 	input      [31:0] status_word
 );
 
@@ -61,6 +64,8 @@ assign DDRAM_BE = 8'hFF;
 reg [31:0] fifo[16];
 reg  [3:0] fifo_wp, fifo_rp;
 reg        old_key_stb;
+reg        mouse_pending;
+reg [31:0] mouse_data;
 
 wire fifo_empty = (fifo_wp == fifo_rp);
 
@@ -68,12 +73,26 @@ always @(posedge clk) begin
 	if (reset) begin
 		fifo_wp <= 0;
 		old_key_stb <= ps2_key[10];
+		mouse_pending <= 0;
 	end
 	else begin
 		old_key_stb <= ps2_key[10];
-		if (old_key_stb != ps2_key[10] && (fifo_wp + 1'd1) != fifo_rp) begin
-			fifo[fifo_wp] <= {2'b00, 19'd0, ps2_key};   // EVT_KEY
-			fifo_wp <= fifo_wp + 1'd1;
+		if (mouse_stb) begin
+			mouse_pending <= 1;
+			mouse_data <= mouse_evt;
+		end
+		if (old_key_stb != ps2_key[10]) begin
+			if ((fifo_wp + 1'd1) != fifo_rp) begin
+				fifo[fifo_wp] <= {2'b00, 19'd0, ps2_key};   // EVT_KEY
+				fifo_wp <= fifo_wp + 1'd1;
+			end
+		end
+		else if (mouse_pending && !mouse_stb) begin
+			mouse_pending <= 0;
+			if ((fifo_wp + 1'd1) != fifo_rp) begin
+				fifo[fifo_wp] <= mouse_data;                // EVT_MOUSE
+				fifo_wp <= fifo_wp + 1'd1;
+			end
 		end
 	end
 end
@@ -113,6 +132,7 @@ always @(posedge clk) begin
 		fifo_rp <= 0;
 		seq <= 0;
 		alive <= 0;
+		flags <= 0;
 	end
 	else begin
 		if (fetch_req) begin
@@ -133,6 +153,7 @@ always @(posedge clk) begin
 			end
 			else begin
 				alive <= (DDRAM_DOUT[31:0] == ALIVE_MAGIC);
+				flags <= DDRAM_DOUT[63:32];
 			end
 			rd_cnt <= rd_cnt + 1'd1;
 			if (rd_cnt == DDRAM_BURSTCNT - 1'd1) rd_busy <= 0;

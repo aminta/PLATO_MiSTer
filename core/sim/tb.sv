@@ -1,5 +1,5 @@
 // Testbench for plato_video + plato_ddr with a simple DDR3 model.
-// Run: iverilog -g2012 -o tb sim/tb.sv rtl/plato_video.sv rtl/plato_ddr.sv && vvp tb
+// Run: iverilog -g2012 -o tb sim/tb.sv rtl/plato_video.sv rtl/plato_ddr.sv rtl/plato_mouse.sv && vvp tb
 `timescale 1ns/1ps
 
 module tb;
@@ -25,9 +25,22 @@ wire [47:0] lb_data;
 wire HBlank, VBlank, HSync, VSync;
 wire [7:0] R, G, B;
 reg  [10:0] ps2_key = 0;
+reg  [24:0] ps2_mouse = 0;
+wire [31:0] flags;
+wire  [8:0] mouse_x, mouse_y;
+wire        mouse_moved, mouse_stb;
+wire [31:0] mouse_evt;
+integer     cursor_on = 0;
+
+plato_mouse mouse (
+	.clk(clk), .reset(reset), .ps2_mouse(ps2_mouse),
+	.x(mouse_x), .y(mouse_y), .moved(mouse_moved),
+	.evt_stb(mouse_stb), .evt_data(mouse_evt)
+);
 
 plato_video video (
 	.clk(clk), .reset(reset), .enable(alive),
+	.cursor_show(flags[0] & mouse_moved), .cursor_x(mouse_x), .cursor_y(mouse_y),
 	.fetch_req(fetch_req), .fetch_row(fetch_row), .frame_start(frame_start),
 	.lb_we(lb_we), .lb_addr(lb_addr), .lb_data(lb_data),
 	.HBlank(HBlank), .VBlank(VBlank), .HSync(HSync), .VSync(VSync),
@@ -42,6 +55,7 @@ plato_ddr ddr (
 	.DDRAM_DIN(DDRAM_DIN), .DDRAM_BE(DDRAM_BE), .DDRAM_WE(DDRAM_WE),
 	.fetch_req(fetch_req), .fetch_row(fetch_row), .frame_start(frame_start),
 	.lb_we(lb_we), .lb_addr(lb_addr), .lb_data(lb_data), .alive(alive),
+	.flags(flags), .mouse_stb(mouse_stb), .mouse_evt(mouse_evt),
 	.ps2_key(ps2_key), .status_word(32'h1234_5678)
 );
 
@@ -143,7 +157,8 @@ end
 integer i;
 initial begin
 	for (i = 0; i < 512; i = i + 1) ctlmem[i] = 0;
-	ctlmem[1] = 64'h0000_0000_504C_4154;     // alive magic
+	if ($test$plusargs("cursor")) cursor_on = 1;
+	ctlmem[1] = {31'd0, cursor_on[0], 32'h504C_4154};   // alive magic, flags
 	#1000 reset = 0;
 
 	// key events
@@ -151,11 +166,25 @@ initial begin
 	ps2_key = 11'h61C;  ps2_key[10] = 1;     // 'a' pressed
 	#100;
 	ps2_key[9] = 0; ps2_key[10] = 0;         // released
-	#5000000;
+	// mouse: move +10 right, +20 up (PS/2 Y up), then press and release left
+	#1000000;
+	ps2_mouse = {~ps2_mouse[24], 8'd20, 8'd10, 8'b0000_1000};
+	#1000000;
+	ps2_mouse = {~ps2_mouse[24], 8'd0, 8'd0, 8'b0000_1001};
+	#1000000;
+	ps2_mouse = {~ps2_mouse[24], 8'd0, 8'd0, 8'b0000_1000};
+	#3000000;
+	$display("mouse at %0d,%0d", mouse_x, mouse_y);
+	$display("slot3  %h", ctlmem[32 + 3]);
+	$display("slot4  %h", ctlmem[32 + 4]);
+	if (ctlmem[35] !== {32'd3, 2'b01, 10'd0, 1'b1, 1'b0, 9'd266, 9'd236} ||
+	    ctlmem[36] !== {32'd4, 2'b01, 10'd0, 1'b0, 1'b0, 9'd266, 9'd236}) begin
+		$display("ERROR: mouse events"); errors = errors + 1;
+	end
 	$display("header %h", ctlmem[0]);
 	$display("slot1  %h", ctlmem[32 + 1]);
 	$display("slot2  %h", ctlmem[32 + 2]);
-	if (ctlmem[0] !== 64'h00000002_12345678) begin $display("ERROR: header"); errors = errors + 1; end
+	if (ctlmem[0] !== 64'h00000004_12345678) begin $display("ERROR: header"); errors = errors + 1; end
 	if (ctlmem[33][63:32] !== 1 || ctlmem[34][63:32] !== 2) begin $display("ERROR: slots"); errors = errors + 1; end
 
 	wait (frame == 3);

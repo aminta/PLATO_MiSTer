@@ -291,6 +291,7 @@ PlatoEngine::PlatoEngine ()
       m_dumbTty (true),
       m_flowCtrl (false),
       m_beep (false),
+      m_touchEnabled (false),
       m_ringCount (0),
       m_noColor (false),
       m_ascii (true),
@@ -410,6 +411,7 @@ void PlatoEngine::Reset (void)
     m_fontwidth = 8;
     m_fontheight = 16;
     m_indev = m_outdev = m_mtincnt = 0;
+    m_touchEnabled = false;
     cwsmode = cwsfun = cwscnt = cwswin = 0;
     m_name.clear ();
     m_group.clear ();
@@ -1470,6 +1472,11 @@ bool PlatoEngine::procPlatoWord (u32 d, bool ascii)
                     break;
                 case ssf:
                     n = AssembleData (d);
+                    if (n != -1)
+                    {
+                        // Touch panel control (PtermCanvas::ptermTouchPanel)
+                        m_touchEnabled = (n & 0x20) != 0;
+                    }
                     switch (n)
                     {
                     case 0x1f00:    // xin 7; means start CWS functions
@@ -1783,6 +1790,11 @@ bool PlatoEngine::procPlatoWord (u32 d, bool ascii)
                 break;
 
             case 5:     // SSF on PPT
+                if (((d >> 10) & 037) == 1)
+                {
+                    // Touch panel control
+                    m_touchEnabled = (d & 040) != 0;
+                }
                 trace ("ssf %o", d);
                 break;
 
@@ -2777,6 +2789,10 @@ int PlatoEngine::check_pcZ80 (void)
             cwsmode = 2;
             break;
         default:
+            if (device == 1 && writ == 0)
+            {
+                m_touchEnabled = (data & 0x20) != 0;
+            }
             break;
         }
     }

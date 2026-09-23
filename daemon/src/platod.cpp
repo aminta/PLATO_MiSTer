@@ -149,6 +149,7 @@ public:
 
     bool Sim (void) const { return m_sim; }
     void SetAlive (bool on) { Write32 (CTL_ALIVE, on ? ALIVE_MAGIC : 0); }
+    void SetFlags (u32 flags) { Write32 (CTL_FLAGS, flags); }
 
     // Simulation helpers: inject events and write a PPM snapshot.
     void SimEvent (u32 event)
@@ -462,6 +463,7 @@ int main (int argc, char **argv)
     uint64_t delayUntil = 0;
     uint64_t lastFlush = 0;
     uint64_t lastCoreCheck = 0;
+    u32 lastFlags = ~0u;
 
     while (running)
     {
@@ -629,6 +631,18 @@ int main (int argc, char **argv)
                     wantConnect = true;
                 }
             }
+            else if (EVT_TYPE (event) == EVT_MOUSE)
+            {
+                // PTerm sends the touch when the left button is released
+                bool pressed = (event >> 19) & 1;
+                int x = (event >> 9) & 0777;
+                int row = event & 0777;
+
+                if (!pressed && engine.m_touchEnabled && online)
+                {
+                    engine.ptermSendTouch (x, 511 - row);
+                }
+            }
         }
         if (STATUS_RECONN (status) != reconnCount)
         {
@@ -644,6 +658,15 @@ int main (int argc, char **argv)
         }
         keys.m_numpadArrows = STATUS_NUMPAD (status) == 0;
         keys.m_italian = STATUS_KBD (status) != 0;
+
+        // Pointer only while the host has the touch panel enabled
+        u32 flags = engine.m_touchEnabled ? FLAG_TOUCH : 0;
+        if (flags != lastFlags)
+        {
+            shm.SetFlags (flags);
+            lastFlags = flags;
+            logf ("touch panel %s", flags ? "on" : "off");
+        }
 
         // ---- Screen update ----
         if (engine.Dirty () &&
@@ -730,6 +753,15 @@ int main (int argc, char **argv)
                 shm.Snapshot (s.arg.c_str ());
                 logf ("snapshot %s", s.arg.c_str ());
             }
+            else if (s.cmd == "touch")
+            {
+                // click at PLATO coordinates x y (y = 0 at the bottom)
+                int tx = 0, ty = 0;
+                sscanf (s.arg.c_str (), "%d %d", &tx, &ty);
+                u32 pos = ((tx & 0777) << 9) | ((511 - ty) & 0777);
+                shm.SimEvent ((1u << 30) | (1u << 19) | pos);
+                shm.SimEvent ((1u << 30) | pos);
+            }
             else if (s.cmd == "status")
             {
                 shm.SimStatus (strtoul (s.arg.c_str (), NULL, 0));
@@ -775,6 +807,7 @@ int main (int argc, char **argv)
 
     conn.Close ();
     shm.SetAlive (false);
+    shm.SetFlags (0);
     logf ("exit");
     return 0;
 }

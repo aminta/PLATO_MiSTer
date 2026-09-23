@@ -70,6 +70,7 @@ wire forced_scandoubler;
 wire   [1:0] buttons;
 wire [127:0] status;
 wire  [10:0] ps2_key;
+wire  [24:0] ps2_mouse;
 
 hps_io #(.CONF_STR(CONF_STR)) hps_io
 (
@@ -84,7 +85,8 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 	.status(status),
 	.status_menumask(16'd0),
 
-	.ps2_key(ps2_key)
+	.ps2_key(ps2_key),
+	.ps2_mouse(ps2_mouse)
 );
 
 ///////////////////////   CLOCKS   ///////////////////////////////
@@ -120,6 +122,26 @@ wire        lb_we;
 wire  [8:0] lb_addr;
 wire [47:0] lb_data;
 wire        alive;
+wire [31:0] flags;
+
+// Mouse as touch panel: the pointer is shown while PLATO has the touch
+// panel enabled (flags[0], set by platod) and the mouse has been moved
+// recently; left button changes go to platod.
+wire  [8:0] mouse_x, mouse_y;
+wire        mouse_moved, mouse_stb;
+wire [31:0] mouse_evt;
+
+plato_mouse mouse
+(
+	.clk(clk_sys),
+	.reset(reset),
+	.ps2_mouse(ps2_mouse),
+	.x(mouse_x),
+	.y(mouse_y),
+	.moved(mouse_moved),
+	.evt_stb(mouse_stb),
+	.evt_data(mouse_evt)
+);
 
 wire HBlank, VBlank, HSync, VSync;
 wire [7:0] R, G, B;
@@ -129,6 +151,9 @@ plato_video video
 	.clk(clk_sys),
 	.reset(reset),
 	.enable(alive),
+	.cursor_show(flags[0] & mouse_moved),
+	.cursor_x(mouse_x),
+	.cursor_y(mouse_y),
 	.fetch_req(fetch_req),
 	.fetch_row(fetch_row),
 	.frame_start(frame_start),
@@ -166,7 +191,10 @@ plato_ddr ddr
 	.lb_addr(lb_addr),
 	.lb_data(lb_data),
 	.alive(alive),
+	.flags(flags),
 	.ps2_key(ps2_key),
+	.mouse_stb(mouse_stb),
+	.mouse_evt(mouse_evt),
 	.status_word(status_word)
 );
 
