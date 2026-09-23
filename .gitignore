@@ -16,3 +16,7 @@ core/PLLJ_PLLSPE_INFO.txt
 core/hc_output/
 core/simulation/
 .DS_Store
+core/map.log
+core/fit.log
+core/asm.log
+core/sta.log
