@@ -1,0 +1,5 @@
+wait 6000
+key next
+wait 5000
+snap test/s2.ppm
+quit

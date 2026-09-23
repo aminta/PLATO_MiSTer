@@ -1,0 +1,7 @@
+wait 6000
+key next
+wait 4000
+type hello
+wait 2000
+snap test/s3.ppm
+quit

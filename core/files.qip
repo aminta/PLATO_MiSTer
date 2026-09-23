@@ -1,0 +1,4 @@
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/plato_video.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/plato_ddr.sv
+set_global_assignment -name SDC_FILE PLATO.sdc
+set_global_assignment -name SYSTEMVERILOG_FILE PLATO.sv
