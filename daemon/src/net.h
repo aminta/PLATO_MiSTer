@@ -46,6 +46,14 @@ public:
     // Next word for the display, with PTerm's delay encoding (bits 19+)
     // or C_NODATA.
     int NextWord (void);
+    // Next word without delay encoding (for the GSW), or C_NODATA
+    int PopRaw (void)
+    {
+        if (m_ring.empty ()) return C_NODATA;
+        int w = m_ring.front ();
+        m_ring.pop_front ();
+        return w;
+    }
     int RingCount (void) const { return (int) m_ring.size (); }
     void StoreWord (int word) { m_ring.push_back (word); }
 

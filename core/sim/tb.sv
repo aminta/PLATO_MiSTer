@@ -5,7 +5,7 @@
 module tb;
 
 reg clk = 0;
-always #12.5 clk = ~clk;   // 40 MHz
+always #4.63 clk = ~clk;   // 108 MHz
 
 reg reset = 1;
 
@@ -25,9 +25,11 @@ wire [47:0] lb_data;
 wire HBlank, VBlank, HSync, VSync;
 wire [7:0] R, G, B;
 reg  [10:0] ps2_key = 0;
+reg         mode_sel = 0;
+wire        ce_pix;
 
 plato_video video (
-	.clk(clk), .reset(reset), .enable(alive),
+	.clk(clk), .reset(reset), .mode_sel(mode_sel), .enable(alive), .ce_pix(ce_pix),
 	.fetch_req(fetch_req), .fetch_row(fetch_row), .frame_start(frame_start),
 	.lb_we(lb_we), .lb_addr(lb_addr), .lb_data(lb_data),
 	.HBlank(HBlank), .VBlank(VBlank), .HSync(HSync), .VSync(VSync),
@@ -112,7 +114,8 @@ integer x = 0, y = 0, frame = 0, errors = 0, good = 0;
 reg old_de = 0, old_vs = 0;
 wire de = ~(HBlank | VBlank);
 
-always @(posedge clk) begin
+integer scale = 1;
+always @(posedge clk) if (ce_pix) begin
 	old_de <= de;
 	old_vs <= VSync;
 	if (VSync && !old_vs) begin
@@ -120,12 +123,14 @@ always @(posedge clk) begin
 		frame = frame + 1;
 		y = 0;
 		good = 0;
+		if (frame == 3) mode_sel = 1;
 	end
 	if (de) begin
+		scale = video.dbl ? 2 : 1;
 		if (frame >= 1) begin
-			if ({R, G, B} != pix(x, y)) begin
+			if ({R, G, B} != pix(x / scale, y / scale)) begin
 				if (errors < 10)
-					$display("pixel %0d,%0d = %h expected %h", x, y, {R, G, B}, pix(x, y));
+					$display("pixel %0d,%0d = %h expected %h", x, y, {R, G, B}, pix(x / scale, y / scale));
 				errors = errors + 1;
 			end
 			else good = good + 1;
@@ -133,7 +138,7 @@ always @(posedge clk) begin
 		x = x + 1;
 	end
 	if (!de && old_de) begin
-		if (x != 512) $display("ERROR: line %0d has %0d pixels", y, x);
+		if (x != 512 * scale) $display("ERROR: line %0d has %0d pixels", y, x);
 		x = 0;
 		y = y + 1;
 	end
@@ -157,7 +162,7 @@ initial begin
 	if (ctlmem[0] !== 64'h00000002_12345678) begin $display("ERROR: header"); errors = errors + 1; end
 	if (ctlmem[33][63:32] !== 1 || ctlmem[34][63:32] !== 2) begin $display("ERROR: slots"); errors = errors + 1; end
 
-	wait (frame == 3);
+	wait (frame == 6);
 	$display("DONE errors=%0d", errors);
 	$finish;
 end

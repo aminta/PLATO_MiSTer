@@ -19,6 +19,7 @@ public:
     bool Event (PlatoEngine &engine, int scancode, bool extended, bool pressed);
 
     bool m_numpadArrows;        // numeric keypad acts as PLATO arrow keys
+    bool m_italian;             // Italian keyboard layout (else US)
 
 private:
     bool m_lshift, m_rshift, m_lctrl, m_rctrl, m_lalt, m_ralt, m_caps;

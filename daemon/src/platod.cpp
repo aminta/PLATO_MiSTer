@@ -34,6 +34,8 @@
 #include "keymap.h"
 #include "keytabs.h"
 #include "shared.h"
+#include "audio.h"
+#include <deque>
 
 #define RINGSIZE        5000
 #define RINGXON1        (RINGSIZE / 3)
@@ -298,6 +300,7 @@ int main (int argc, char **argv)
     PlatoEngine engine;
     HostConnection conn;
     KeyMapper keys;
+    Audio audio;
 
     LoadIni (cfg);
     for (int i = 1; i < argc; i++)
@@ -336,6 +339,106 @@ int main (int argc, char **argv)
     {
         script = LoadScript (cfg.script);
     }
+
+    if (!cfg.sim && !audio.Open ())
+    {
+        fprintf (stderr, "platod: no ALSA sound\n");
+    }
+
+    // GSW (music device) state, see PtermHostConnection::NextWord and
+    // NextGswWord.  While the GSW plays, the display words are handed to
+    // the display by the sound output, 60 per second, so that the display
+    // stays in step with the music.
+    std::deque<int> gswDisplay;
+    bool gswRouting = false;        // display words come from gswDisplay
+    bool gswPending = false;        // waiting for enough data to start
+    uint64_t gswT0 = 0;
+    int gswSavedMode = 0, gswWord2 = 0, gswNoData = 0;
+
+    auto gswNext = [&] () -> int
+    {
+        int w;
+
+        if (gswSavedMode != 0)
+        {
+            w = gswSavedMode;
+            gswSavedMode = 0;
+            return w;
+        }
+        if (gswWord2 != 0)
+        {
+            w = gswWord2;
+            gswWord2 = 0;
+            return w;
+        }
+        w = conn.PopRaw ();
+        if (w == C_NODATA)
+        {
+            // About a second without data: end of the song
+            if (++gswNoData > 60)
+            {
+                gswDisplay.push_back (C_GSWEND);
+                return C_GSWEND;
+            }
+            return C_NODATA;
+        }
+        gswNoData = 0;
+        gswDisplay.push_back (w);
+        return w;
+    };
+
+    auto gswReset = [&] ()
+    {
+        audio.StopGsw ();
+        gswDisplay.clear ();
+        gswRouting = gswPending = false;
+        gswSavedMode = gswWord2 = gswNoData = 0;
+    };
+
+    auto nextDisplayWord = [&] (uint64_t now) -> int
+    {
+        int w;
+
+        if (gswRouting)
+        {
+            while (!gswDisplay.empty ())
+            {
+                w = gswDisplay.front ();
+                gswDisplay.pop_front ();
+                if (w == C_GSWEND)
+                {
+                    gswRouting = false;
+                    break;
+                }
+                return w;
+            }
+            if (gswRouting)
+            {
+                return C_NODATA;
+            }
+        }
+        w = conn.NextWord ();
+        if (w >= 0 && !conn.Ascii () && (w >> 16) == 3 && w != 0700001 &&
+            !((w == 0770000 || w == 0730000) && engine.m_station == "0-1") &&
+            audio.Ok () && !audio.m_mute)
+        {
+            // -extout- word: start the GSW, unless it is the "turn off"
+            // sequence (mode word followed by rests).
+            if ((w >> 15) == 6)
+            {
+                gswSavedMode = w;
+            }
+            else if ((w & 077777) >= 2 && !audio.GswActive ())
+            {
+                gswRouting = true;
+                gswPending = true;
+                gswT0 = now;
+                gswWord2 = w;
+                gswNoData = 0;
+            }
+        }
+        return w;
+    };
 
     engine.SetSender ([&conn] (const void *d, int len) { conn.SendData (d, len); });
     engine.SetLocalEcho ([&conn] (int key) { conn.StoreWord (key); });
@@ -387,6 +490,7 @@ int main (int argc, char **argv)
             engine.ClearDirty ();
             shm.SetAlive (true);
             logf ("connecting to %s:%d", cfg.host.c_str (), port);
+            gswReset ();
             conn.Connect (cfg.host, port, mode);
             online = true;
             xoff = false;
@@ -428,7 +532,7 @@ int main (int argc, char **argv)
                 {
                     break;
                 }
-                int word = conn.NextWord ();
+                int word = nextDisplayWord (now);
                 if (word == C_NODATA)
                 {
                     break;
@@ -459,6 +563,24 @@ int main (int argc, char **argv)
             engine.AfterData ();
         }
         engine.Tick (now);
+
+        // ---- Sound ----
+        if (gswPending && (conn.RingCount () >= 50 || now - gswT0 >= 300))
+        {
+            gswPending = false;
+            audio.StartGsw (gswNext);
+        }
+        if (gswRouting && !gswPending && !audio.GswActive () && gswDisplay.empty ())
+        {
+            gswRouting = false;
+        }
+        if (engine.m_beep)
+        {
+            engine.m_beep = false;
+            audio.Beep ();
+        }
+        audio.m_mute = STATUS_BEEP (status) != 0;
+        audio.Pump ();
 
         // Echo pacing and flow control (PtermHostConnection::NextRingWord)
         int ring = conn.RingCount ();
@@ -519,6 +641,7 @@ int main (int argc, char **argv)
             // Takes effect on the next (re)connection, as in PTerm.
         }
         keys.m_numpadArrows = STATUS_NUMPAD (status) == 0;
+        keys.m_italian = STATUS_KBD (status) != 0;
 
         // ---- Screen update ----
         if (engine.Dirty () &&

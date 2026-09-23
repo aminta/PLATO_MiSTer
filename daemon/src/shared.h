@@ -43,6 +43,9 @@
 #define STATUS_PORT(s)      (((s) >> 1) & 1)    // 0 = 5004 auto, 1 = 8005 ASCII
 #define STATUS_COLOR(s)     (((s) >> 2) & 7)    // colour scheme
 #define STATUS_NUMPAD(s)    (((s) >> 5) & 1)    // 0 = arrows, 1 = numbers
+#define STATUS_VIDEO(s)     (((s) >> 7) & 1)    // FPGA only
+#define STATUS_KBD(s)       (((s) >> 8) & 1)    // 0 = US, 1 = Italian
+#define STATUS_BEEP(s)      (((s) >> 9) & 1)    // 0 = on, 1 = off
 #define STATUS_RECONN(s)    (((s) >> 28) & 15)  // counts OSD "Reconnect"
 
 #endif

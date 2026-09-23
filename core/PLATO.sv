@@ -1,7 +1,7 @@
 //============================================================================
 //  PLATO terminal - hybrid MiSTer core
 //
-//  The FPGA side outputs the 512x512 PLATO screen on HDMI and VGA and
+//  The FPGA side outputs the PLATO screen on HDMI and VGA and
 //  forwards the keyboard to platod, which runs on the ARM (HPS) and does
 //  the networking and PLATO protocol decoding with the PTerm engine.
 //  Both sides talk through DDR3 at 0x30000000, see rtl/plato_ddr.sv.
@@ -57,7 +57,10 @@ localparam CONF_STR = {
 	"O[1],Connection,Port 5004 (auto),Port 8005 (ASCII);",
 	"O[4:2],Colors,Orange,White,Green,Amber,Blue,Paper;",
 	"O[5],Numeric keypad,Arrows,Numbers;",
+	"O[8],Keyboard layout,US,Italian;",
+	"O[9],Sound,On,Off;",
 	"-;",
+	"O[7],Video mode,1280x1024 (2x),800x600 (1x);",
 	"O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"-;",
 	"T[6],Reconnect;",
@@ -89,7 +92,7 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 
 ///////////////////////   CLOCKS   ///////////////////////////////
 
-wire clk_sys;   // 40 MHz: VESA 800x600@60 pixel clock
+wire clk_sys;   // 108 MHz: VESA 1280x1024@60 pixel clock (800x600@56 = /3)
 pll pll
 (
 	.refclk(CLK_50M),
@@ -121,14 +124,16 @@ wire  [8:0] lb_addr;
 wire [47:0] lb_data;
 wire        alive;
 
-wire HBlank, VBlank, HSync, VSync;
+wire HBlank, VBlank, HSync, VSync, ce_pix;
 wire [7:0] R, G, B;
 
 plato_video video
 (
 	.clk(clk_sys),
 	.reset(reset),
+	.mode_sel(status[7]),
 	.enable(alive),
+	.ce_pix(ce_pix),
 	.fetch_req(fetch_req),
 	.fetch_row(fetch_row),
 	.frame_start(frame_start),
@@ -171,7 +176,7 @@ plato_ddr ddr
 );
 
 assign CLK_VIDEO = clk_sys;
-assign CE_PIXEL  = 1;
+assign CE_PIXEL  = ce_pix;
 
 assign VGA_DE = ~(HBlank | VBlank);
 assign VGA_HS = HSync;

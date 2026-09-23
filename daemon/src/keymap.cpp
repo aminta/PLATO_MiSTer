@@ -120,6 +120,41 @@ static const ScanEntry scanExtended[] =
     { 0, 0, 0 }
 };
 
+// Italian layout: keys that differ from the US layout.
+// { code, unshifted, shifted, AltGr, AltGr+Shift } as Unicode values.
+struct AltGrEntry
+{
+    u8  code;
+    int normal;
+    int shifted;
+    int altgr;
+    int altgrShift;
+};
+
+static const AltGrEntry scanItalian[] =
+{
+    { 0x0e, '\\', '|', 0, 0 },
+    { 0x1e, '2', '"', 0, 0 },
+    { 0x26, '3', 0xa3, 0, 0 },          // pound
+    { 0x36, '6', '&', 0, 0 },
+    { 0x3d, '7', '/', 0, 0 },
+    { 0x3e, '8', '(', 0, 0 },
+    { 0x46, '9', ')', 0, 0 },
+    { 0x45, '0', '=', 0, 0 },
+    { 0x4e, '\'', '?', '`', 0 },
+    { 0x55, 0xec, '^', '~', 0 },        // i grave
+    { 0x54, 0xe8, 0xe9, '[', '{' },     // e grave, e acute
+    { 0x5b, '+', '*', ']', '}' },
+    { 0x4c, 0xf2, 0xe7, '@', 0 },       // o grave, c cedilla
+    { 0x52, 0xe0, 0xb0, '#', 0 },       // a grave, degree
+    { 0x5d, 0xf9, 0xa7, 0, 0 },         // u grave, section
+    { 0x41, ',', ';', 0, 0 },
+    { 0x49, '.', ':', 0, 0 },
+    { 0x4a, '-', '_', 0, 0 },
+    { 0x61, '<', '>', 0, 0 },
+    { 0, 0, 0, 0, 0 }
+};
+
 static const ScanEntry *Lookup (int scancode, bool extended)
 {
     const ScanEntry *e = extended ? scanExtended : scanNormal;
@@ -134,8 +169,39 @@ static const ScanEntry *Lookup (int scancode, bool extended)
     return NULL;
 }
 
+static const AltGrEntry *LookupItalian (int scancode)
+{
+    for (const AltGrEntry *e = scanItalian; e->code != 0; e++)
+    {
+        if (e->code == scancode)
+        {
+            return e;
+        }
+    }
+    return NULL;
+}
+
+// PLATO key sequence for a Unicode character (PtermCanvas::OnChar plus the
+// unicodeToPlato table PTerm uses for pasted text), or None.
+static u32 CharToPlato (int ch)
+{
+    if (ch < 0200)
+    {
+        return asciiToPlato[ch];
+    }
+    for (unsigned i = 0; i < sizeof (unicodeToPlato) / sizeof (unicodeToPlato[0]); i++)
+    {
+        if (unicodeToPlato[i].u == (u32) ch)
+        {
+            return unicodeToPlato[i].p;
+        }
+    }
+    return None;
+}
+
 KeyMapper::KeyMapper ()
     : m_numpadArrows (true),
+      m_italian (false),
       m_lshift (false), m_rshift (false),
       m_lctrl (false), m_rctrl (false),
       m_lalt (false), m_ralt (false),
@@ -147,15 +213,16 @@ bool KeyMapper::Event (PlatoEngine &engine, int scancode, bool extended,
                        bool pressed)
 {
     const ScanEntry *e = Lookup (scancode, extended);
+    const AltGrEntry *it = (m_italian && !extended) ? LookupItalian (scancode) : NULL;
     int key, shift;
-    bool ctrl, alt, shiftDown;
+    bool ctrl, alt, altgr, shiftDown;
     u32 pc = None;
 
-    if (e == NULL)
+    if (e == NULL && it == NULL)
     {
         return false;
     }
-    key = e->normal;
+    key = it ? it->normal : e->normal;
 
     // Modifier state
     switch (key)
@@ -180,8 +247,26 @@ bool KeyMapper::Event (PlatoEngine &engine, int scancode, bool extended,
 
     shiftDown = m_lshift || m_rshift;
     ctrl = m_lctrl || m_rctrl;
-    alt = m_lalt || m_ralt;
+    // On the Italian layout the right Alt key is AltGr.
+    altgr = m_italian && m_ralt;
+    alt = m_lalt || (m_ralt && !m_italian);
     shift = shiftDown ? 040 : 0;
+
+    if (altgr)
+    {
+        int ch = 0;
+
+        if (it != NULL)
+        {
+            ch = shiftDown ? it->altgrShift : it->altgr;
+        }
+        pc = (ch != 0) ? CharToPlato (ch) : None;
+        if (pc != None)
+        {
+            engine.ptermSendKey (pc);
+        }
+        return false;
+    }
 
     // Special case: ALT-left or Ctrl-left is assignment arrow
     if ((alt || ctrl) && key == K_LEFT)
@@ -353,15 +438,23 @@ bool KeyMapper::Event (PlatoEngine &engine, int scancode, bool extended,
     default:
         // Regular printable character (PtermCanvas::OnChar): the shifted
         // character comes from the US layout, caps lock affects letters.
-        if (key < 0200)
+        if (key < 0200 || it != NULL)
         {
-            int ch = shiftDown ? e->shifted : e->normal;
+            int ch;
 
-            if (m_caps && isalpha (ch))
+            if (it != NULL)
+            {
+                ch = shiftDown ? it->shifted : it->normal;
+            }
+            else
+            {
+                ch = shiftDown ? e->shifted : e->normal;
+            }
+            if (m_caps && ch < 0200 && isalpha (ch))
             {
                 ch = shiftDown ? tolower (ch) : toupper (ch);
             }
-            pc = asciiToPlato[ch];
+            pc = CharToPlato (ch);
             if (pc != None)
             {
                 engine.ptermSendKey (pc);
