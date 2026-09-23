@@ -93,5 +93,5 @@ void DrawCredits (PlatoEngine &e)
     Center (e, 26, "Thanks to CYBER1 (cyber1.org)");
     Center (e, 27, "for keeping PLATO alive");
 
-    Center (e, 30, "Close the OSD to return to PLATO");
+    Center (e, 30, "Press any key to return to PLATO");
 }

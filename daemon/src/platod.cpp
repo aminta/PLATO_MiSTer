@@ -516,6 +516,8 @@ int main (int argc, char **argv)
     u32 lastHead = shm.Head ();
     u32 colorScheme = STATUS_COLOR (status);
     u32 reconnCount = STATUS_RECONN (status);
+    u32 creditsCount = STATUS_CREDITS (status);
+    bool wantCredits = false;
     engine.SetDefaultColors (colorSchemes[colorScheme][0],
                              colorSchemes[colorScheme][1]);
     engine.Reset ();
@@ -741,7 +743,15 @@ int main (int argc, char **argv)
             {
                 continue;
             }
-            if (EVT_TYPE (event) == EVT_KEY)
+            if (EVT_TYPE (event) == EVT_KEY && wantCredits)
+            {
+                // any key press closes the credits page
+                if ((event >> 9) & 1)
+                {
+                    wantCredits = false;
+                }
+            }
+            else if (EVT_TYPE (event) == EVT_KEY)
             {
                 bool next = keys.Event (engine, event & 0xff,
                                         (event >> 8) & 1, (event >> 9) & 1);
@@ -768,6 +778,7 @@ int main (int argc, char **argv)
             reconnCount = STATUS_RECONN (status);
             conn.Close ();
             wantConnect = true;
+            wantCredits = false;
         }
         if (STATUS_COLOR (status) != colorScheme)
         {
@@ -787,8 +798,12 @@ int main (int argc, char **argv)
             logf ("touch panel %s", flags ? "on" : "off");
         }
 
-        // ---- Credits page while the OSD is open ("pause") ----
-        bool wantCredits = STATUS_OSD (status) && !STATUS_NOPAUSE (status);
+        // ---- Credits page (OSD "Credits"; any key returns to PLATO) ----
+        if (STATUS_CREDITS (status) != creditsCount)
+        {
+            creditsCount = STATUS_CREDITS (status);
+            wantCredits = true;
+        }
         if (wantCredits && !showingCredits)
         {
             credits.SetDefaultColors (colorSchemes[colorScheme][0],

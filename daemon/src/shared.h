@@ -49,7 +49,7 @@
 #define STATUS_NUMPAD(s)    (((s) >> 5) & 1)    // 0 = arrows, 1 = numbers
 #define STATUS_KBD(s)       (((s) >> 8) & 1)    // 0 = US, 1 = Italian
 #define STATUS_BEEP(s)      (((s) >> 9) & 1)    // 0 = on, 1 = off
-#define STATUS_NOPAUSE(s)   (((s) >> 10) & 1)   // 0 = credits while OSD open
+#define STATUS_CREDITS(s)   (((s) >> 24) & 7)   // counts OSD "Credits" requests
 #define STATUS_OSD(s)       (((s) >> 27) & 1)   // OSD is open
 #define STATUS_RECONN(s)    (((s) >> 28) & 15)  // counts OSD "Reset" requests
 

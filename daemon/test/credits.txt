@@ -1,5 +1,8 @@
-wait 3000
-status 0x08000000
+wait 4000
+status 0x01000000
 wait 300
-snap test/credits.ppm
+snap test/cr1.ppm
+type a
+wait 300
+snap test/cr2.ppm
 quit

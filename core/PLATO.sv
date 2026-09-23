@@ -57,11 +57,11 @@ localparam CONF_STR = {
 	"O[5],Numeric keypad,Arrows,Numbers;",
 	"O[8],Keyboard layout,US,Italian;",
 	"O[9],Sound,On,Off;",
-	"O[10],Pause when OSD is open,Yes,No;",
 	"-;",
 	"O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O[124:123],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
 	"-;",
+	"R[11],Credits;",
 	"R[0],Reset;",
 	"v,0;",
 	"V,v",`BUILD_DATE
@@ -113,12 +113,21 @@ always @(posedge clk_sys) begin
 	if (reconn_req && !old_reconn) reconn_cnt <= reconn_cnt + 1'd1;
 end
 
-// OSD visibility (for "Pause when OSD is open": platod then shows the
-// credits page), synchronized to clk_sys
+// OSD "Credits" requests are counted the same way: platod shows the
+// credits page when the count changes.
+reg  [2:0] credits_cnt = 0;
+reg        old_credits = 0;
+
+always @(posedge clk_sys) begin
+	old_credits <= status[11];
+	if (status[11] && !old_credits) credits_cnt <= credits_cnt + 1'd1;
+end
+
+// OSD visibility, synchronized to clk_sys
 reg  [1:0] osd_sync = 0;
 always @(posedge clk_sys) osd_sync <= {osd_sync[0], OSD_STATUS};
 
-wire [31:0] status_word = {reconn_cnt, osd_sync[1], status[26:0]};
+wire [31:0] status_word = {reconn_cnt, osd_sync[1], credits_cnt, status[23:0]};
 
 ///////////////////////   VIDEO + DDR3   /////////////////////////
 

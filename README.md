@@ -95,9 +95,8 @@ been moved recently.
 * **Keyboard layout**: US or Italian.
 * **Sound**: on or off.
 * **Aspect ratio** and **Scale** (normal, integer scaling).
-* **Pause when OSD is open**: while the OSD is open the screen shows the
-  credits page and the sound is muted (the PLATO session keeps running;
-  the screen is up to date when the OSD is closed).
+* **Credits**: shows the credits page; any key returns to PLATO (the
+  session keeps running meanwhile, the sound is muted).
 * **Reset**: resets the terminal and reconnects (also the MiSTer USER button).
 
 `/media/fat/PLATO/platod.ini` can set another host or port, see
