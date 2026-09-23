@@ -77,20 +77,21 @@ void DrawCredits (PlatoEngine &e)
     Center (e, 1, "PLATO for MiSTer", true);
 
     Center (e, 5, "This core is dedicated to the unforgettable");
-    Center (e, 7, "Federico \"Zonk\" Della Zonca,", true);
-    Center (e, 10, "founding father of");
-    Center (e, 11, "\"12 Bit - Retrogaming Associazione Culturale\"");
-    Center (e, 12, "of Trieste.");
+    Center (e, 7, "Federico", true);
+    Center (e, 9, "\"Dottor Zonk\" Della Zonca,", true);
+    Center (e, 12, "founding father of");
+    Center (e, 13, "\"12 Bit - Retrogaming Associazione Culturale\"");
+    Center (e, 14, "of Trieste.");
 
-    Box (e, 64, 512 - 16 * 14 + 4, 447, 512 - 16 * 14 + 6);
+    Box (e, 64, 512 - 16 * 16 + 4, 447, 512 - 16 * 16 + 6);
 
-    Center (e, 16, "Core by aminta");
-    Center (e, 18, "PLATO terminal engine: PTerm 6.0.4 by");
-    Center (e, 19, "Paul Koning, Joe Stanton, Dale Sinder et al.");
-    Center (e, 21, "Z80 emulator by Lin Ke-Fong");
-    Center (e, 22, "MiSTer framework by Sorgelig and contributors");
-    Center (e, 24, "Thanks to CYBER1 (cyber1.org)");
-    Center (e, 25, "for keeping PLATO alive");
+    Center (e, 18, "Core by aminta");
+    Center (e, 20, "PLATO terminal engine: PTerm 6.0.4 by");
+    Center (e, 21, "Paul Koning, Joe Stanton, Dale Sinder et al.");
+    Center (e, 23, "Z80 emulator by Lin Ke-Fong");
+    Center (e, 24, "MiSTer framework by Sorgelig and contributors");
+    Center (e, 26, "Thanks to CYBER1 (cyber1.org)");
+    Center (e, 27, "for keeping PLATO alive");
 
-    Center (e, 29, "Close the OSD to return to PLATO");
+    Center (e, 30, "Close the OSD to return to PLATO");
 }

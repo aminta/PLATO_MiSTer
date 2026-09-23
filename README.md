@@ -165,5 +165,5 @@ layout is described in `daemon/src/shared.h`.
 
 ## Dedication
 
-This core is dedicated to the unforgettable Federico "Zonk" Della Zonca,
+This core is dedicated to the unforgettable Federico "Dottor Zonk" Della Zonca,
 founding father of "12 Bit - Retrogaming Associazione Culturale" of Trieste.
