@@ -123,6 +123,16 @@ vga_scaler=0
   Run `plato_install` again; the log is in `/tmp/platod.log`.
 * **"Disconnected"**: check the network; press NEXT (Enter) to reconnect.
 
+## Known issues
+
+* **Moria: garbled 3D maze the first time.** Sometimes the first rooms of
+  the Moria maze are drawn with the wrong graphic characters, and the maze
+  becomes clean later (for example on the next game start). This is not an
+  emulation error: the host draws the room with a loadable character set
+  it believes is already in the terminal, without sending it again. The
+  original PTerm 6.0.4, fed with the same recorded data, draws exactly the
+  same garbled room.
+
 ## Building
 
 * ARM program: `make -C daemon arm` (Debian bullseye cross compiler in
