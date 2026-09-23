@@ -1,5 +1,9 @@
 # PLATO terminal for MiSTer
 
+> **Beta.** Video, keyboard, network and the PLATO protocol are tested on
+> real hardware. The mouse (touch panel) and the sound (beep, GSW music)
+> are implemented but not tested on hardware yet: reports are welcome.
+
 A hybrid MiSTer core that turns the MiSTer into a PLATO terminal for
 [CYBER1](https://www.cyber1.org/) (cyberserv.org), the running PLATO/CYBIS
 system with thousands of original lessons and games (Empire, Avatar, dnd,
