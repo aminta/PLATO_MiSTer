@@ -149,3 +149,8 @@ layout is described in `daemon/src/shared.h`.
   keyboard, mouse and ALSA sound. The Z80 emulator is by Lin Ke-Fong.
 * `core/` is based on the MiSTer Template and is under GPL-2.0
   (`core/LICENSE`).
+
+## Dedication
+
+This core is dedicated to the unforgettable Federico "Zonk" Della Zonca,
+founding father of "12 Bit - Retrogaming Associazione Culturale" of Trieste.
