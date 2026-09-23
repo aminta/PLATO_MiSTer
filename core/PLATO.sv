@@ -60,11 +60,9 @@ localparam CONF_STR = {
 	"O[8],Keyboard layout,US,Italian;",
 	"O[9],Sound,On,Off;",
 	"-;",
-	"O[7],Video mode,1280x1024 (2x),800x600 (1x);",
 	"O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"-;",
-	"T[6],Reconnect;",
-	"R[0],Reconnect and close OSD;",
+	"R[0],Reset;",
 	"v,0;",
 	"V,v",`BUILD_DATE
 };
@@ -92,7 +90,7 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 
 ///////////////////////   CLOCKS   ///////////////////////////////
 
-wire clk_sys;   // 108 MHz: VESA 1280x1024@60 pixel clock (800x600@56 = /3)
+wire clk_sys;   // 40 MHz: VESA 800x600@60 pixel clock
 pll pll
 (
 	.refclk(CLK_50M),
@@ -102,11 +100,11 @@ pll pll
 
 wire reset = RESET;
 
-// "Reconnect" requests (OSD trigger, OSD reset or the user button) are
-// counted and passed to platod, which reconnects when the count changes.
+// Reset requests (OSD "Reset" or the user button) are counted and passed
+// to platod, which resets the terminal and reconnects when the count changes.
 reg  [3:0] reconn_cnt = 0;
 reg        old_reconn = 0;
-wire       reconn_req = status[6] | status[0] | buttons[1];
+wire       reconn_req = status[0] | buttons[1];
 
 always @(posedge clk_sys) begin
 	old_reconn <= reconn_req;
@@ -124,16 +122,14 @@ wire  [8:0] lb_addr;
 wire [47:0] lb_data;
 wire        alive;
 
-wire HBlank, VBlank, HSync, VSync, ce_pix;
+wire HBlank, VBlank, HSync, VSync;
 wire [7:0] R, G, B;
 
 plato_video video
 (
 	.clk(clk_sys),
 	.reset(reset),
-	.mode_sel(status[7]),
 	.enable(alive),
-	.ce_pix(ce_pix),
 	.fetch_req(fetch_req),
 	.fetch_row(fetch_row),
 	.frame_start(frame_start),
@@ -176,7 +172,7 @@ plato_ddr ddr
 );
 
 assign CLK_VIDEO = clk_sys;
-assign CE_PIXEL  = ce_pix;
+assign CE_PIXEL  = 1;
 
 assign VGA_DE = ~(HBlank | VBlank);
 assign VGA_HS = HSync;
