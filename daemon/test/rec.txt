@@ -1,0 +1,5 @@
+wait 6000
+key next
+wait 4000
+snap test/r1.ppm
+quit

@@ -159,6 +159,10 @@ void HostConnection::OnReadable (void)
         if (n > 0)
         {
             m_in.insert (m_in.end (), buf, buf + n);
+            if (m_rxTap)
+            {
+                m_rxTap (buf, (int) n);
+            }
             continue;
         }
         if (n == 0)
@@ -184,6 +188,13 @@ void HostConnection::OnReadable (void)
     Assemble ();
 }
 
+void HostConnection::Inject (const u8 *data, int len)
+{
+    m_state = Connected;
+    m_in.insert (m_in.end (), data, data + len);
+    Assemble ();
+}
+
 void HostConnection::SendData (const void *data, int len)
 {
     const u8 *p = (const u8 *) data;
@@ -191,6 +202,10 @@ void HostConnection::SendData (const void *data, int len)
     if (m_state != Connected && m_state != Connecting)
     {
         return;
+    }
+    if (m_fd < 0)
+    {
+        return;     // replay
     }
     m_out.insert (m_out.end (), p, p + len);
     if (m_state == Connected)

@@ -15,7 +15,13 @@
 //                        "key NAME", "snap FILE.ppm", "status N" (OSD
 //                        status bits), "quit"
 //     --verbose          log to stderr
+//     --record FILE      record the bytes received from the host (with
+//                        times) for debugging; also enabled by creating
+//                        /media/fat/PLATO/record (then files go there)
+//     --replay FILE      (sim) replay a recorded session instead of
+//                        connecting; PLATOD_TRACE=1 traces the engine
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -267,9 +273,15 @@ struct Config
     int         port;           // 0 = from OSD
     bool        sim;
     const char  *script;
+    std::string record;
+    const char  *replay;
 
-    Config () : host (DEFAULTHOST), port (0), sim (false), script (NULL) {}
+    Config () : host (DEFAULTHOST), port (0), sim (false), script (NULL),
+                replay (NULL) {}
 };
+
+#define RECORD_FLAG     "/media/fat/PLATO/record"
+
 
 static void LoadIni (Config &cfg)
 {
@@ -319,12 +331,28 @@ int main (int argc, char **argv)
             cfg.script = argv[++i];
         else if (strcmp (argv[i], "--verbose") == 0)
             verbose = true;
+        else if (strcmp (argv[i], "--record") == 0 && i + 1 < argc)
+            cfg.record = argv[++i];
+        else if (strcmp (argv[i], "--replay") == 0 && i + 1 < argc)
+        {
+            cfg.replay = argv[++i];
+            cfg.sim = true;
+        }
         else
         {
             fprintf (stderr, "usage: platod [--host NAME] [--port N] "
                      "[--sim] [--script FILE] [--verbose]\n");
             return 1;
         }
+    }
+
+    if (cfg.record.empty () && !cfg.sim && access (RECORD_FLAG, F_OK) == 0)
+    {
+        char fn[128];
+        time_t t = time (NULL);
+        strftime (fn, sizeof (fn), "/media/fat/PLATO/session-%Y%m%d-%H%M%S.log",
+                  localtime (&t));
+        cfg.record = fn;
     }
 
     signal (SIGINT, OnSignal);
@@ -447,6 +475,40 @@ int main (int argc, char **argv)
     engine.SetSender ([&conn] (const void *d, int len) { conn.SendData (d, len); });
     engine.SetLocalEcho ([&conn] (int key) { conn.StoreWord (key); });
 
+    // Session recording: "R <ms> <hex bytes>" per received block.  Only
+    // what the host sends is recorded, never what is typed.
+    FILE *rec = NULL;
+    uint64_t recStart = NowMs ();
+    if (!cfg.record.empty ())
+    {
+        rec = fopen (cfg.record.c_str (), "w");
+        if (rec != NULL)
+        {
+            logf ("recording to %s", cfg.record.c_str ());
+            conn.m_rxTap = [&] (const u8 *d, int n)
+            {
+                fprintf (rec, "R %llu ", (unsigned long long) (NowMs () - recStart));
+                for (int i = 0; i < n; i++) fprintf (rec, "%02x", d[i]);
+                fputc ('\n', rec);
+                fflush (rec);
+            };
+        }
+    }
+
+    // Session replay (simulation)
+    FILE *rep = NULL;
+    uint64_t repStart = 0, repNext = 0;
+    std::vector<u8> repData;
+    if (cfg.replay != NULL)
+    {
+        rep = fopen (cfg.replay, "r");
+        if (rep == NULL)
+        {
+            perror (cfg.replay);
+            return 1;
+        }
+    }
+
     u32 status = shm.Status ();
     u32 lastHead = shm.Head ();
     u32 colorScheme = STATUS_COLOR (status);
@@ -496,7 +558,14 @@ int main (int argc, char **argv)
             shm.SetAlive (true);
             logf ("connecting to %s:%d", cfg.host.c_str (), port);
             gswReset ();
-            conn.Connect (cfg.host, port, mode);
+            if (rep == NULL)
+            {
+                conn.Connect (cfg.host, port, mode);
+            }
+            else
+            {
+                repStart = NowMs ();
+            }
             online = true;
             xoff = false;
             nextWord = C_NODATA;
@@ -512,6 +581,38 @@ int main (int argc, char **argv)
             engine.LocalText (msg.c_str ());
             logf ("offline: %s", conn.Error ().c_str ());
             online = false;
+        }
+
+        // ---- Session replay ----
+        while (rep != NULL && now - repStart >= repNext)
+        {
+            if (!repData.empty ())
+            {
+                conn.Inject (repData.data (), (int) repData.size ());
+                repData.clear ();
+            }
+            static char line[1 << 20];
+            unsigned long long ms;
+            if (fgets (line, sizeof (line), rep) == NULL)
+            {
+                fclose (rep);
+                rep = NULL;
+                logf ("replay finished");
+                break;
+            }
+            char *hex = NULL;
+            if (line[0] != 'R' || sscanf (line + 2, "%llu", &ms) != 1 ||
+                (hex = strchr (line + 2, ' ')) == NULL)
+            {
+                continue;
+            }
+            for (hex++; isxdigit ((unsigned char) hex[0]) && isxdigit ((unsigned char) hex[1]); hex += 2)
+            {
+                unsigned v;
+                sscanf (hex, "%2x", &v);
+                repData.push_back ((u8) v);
+            }
+            repNext = ms;
         }
 
         // ---- Display data processing (PtermFrame::procDataLoop) ----
@@ -805,6 +906,10 @@ int main (int argc, char **argv)
         }
     }
 
+    if (rec != NULL)
+    {
+        fclose (rec);
+    }
     conn.Close ();
     shm.SetAlive (false);
     shm.SetFlags (0);

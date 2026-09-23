@@ -1,0 +1,3 @@
+wait 12000
+snap test/r2.ppm
+quit

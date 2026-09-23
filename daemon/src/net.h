@@ -11,6 +11,7 @@
 #include <string>
 #include <deque>
 #include <vector>
+#include <functional>
 
 #include "compat.h"
 
@@ -42,6 +43,10 @@ public:
     void OnWritable (void);
 
     void SendData (const void *data, int len);
+
+    // Session recording and replay (debugging)
+    std::function<void (const u8 *, int)> m_rxTap;  // called with received bytes
+    void Inject (const u8 *data, int len);           // replay received bytes
 
     // Next word for the display, with PTerm's delay encoding (bits 19+)
     // or C_NODATA.

@@ -471,6 +471,7 @@ void PlatoEngine::setCmem (int i)
 
 void PlatoEngine::setVertical (bool u)
 {
+    trace ("vertical %d", u);
     if (u) RAM[M_CCR] |= 0x01; else RAM[M_CCR] &= ~0x01;
 }
 
@@ -2240,6 +2241,7 @@ void PlatoEngine::mode4 (u32 d)
 
 void PlatoEngine::mode5 (u32 d)
 {
+    trace ("mode5 %06o", d);
     m_z80ResumeAt = 0;
 
     // Load C/D/E with data word
@@ -2266,6 +2268,7 @@ void PlatoEngine::mode5 (u32 d)
 
 void PlatoEngine::mode6 (u32 d)
 {
+    trace ("mode6 %06o", d);
     m_z80ResumeAt = 0;
 
     // Load C/D/E with data word
@@ -2284,11 +2287,13 @@ void PlatoEngine::mode6 (u32 d)
 
 void PlatoEngine::mode7 (u32 d)
 {
+    trace ("mode7 %06o", d);
     progmode (d, M7ORIGIN);
 }
 
 void PlatoEngine::progmode (u32 d, int origin)
 {
+    trace ("progmode pc=%04x", ReadRAMW (origin));
     // Load C/D/E with data word
     state->registers.byte[Z80_C] = d >> 16;
     state->registers.byte[Z80_D] = d >> 8;
@@ -2799,6 +2804,7 @@ int PlatoEngine::check_pcZ80 (void)
         return 1;
 
     case R_CCR:
+        trace ("R_CCR %02x", state->registers.byte[Z80_L]);
         RAM[M_CCR] = state->registers.byte[Z80_L];
         return 1;
 
