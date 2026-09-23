@@ -1,0 +1,5 @@
+wait 3000
+status 0x08000000
+wait 300
+snap test/credits.ppm
+quit

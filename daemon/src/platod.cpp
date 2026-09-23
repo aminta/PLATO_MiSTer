@@ -42,6 +42,7 @@
 #include "keytabs.h"
 #include "shared.h"
 #include "audio.h"
+#include "credits.h"
 #include <deque>
 
 #define RINGSIZE        5000
@@ -317,6 +318,8 @@ int main (int argc, char **argv)
     HostConnection conn;
     KeyMapper keys;
     Audio audio;
+    PlatoEngine credits;            // draws the credits page
+    bool showingCredits = false;
 
     LoadIni (cfg);
     for (int i = 1; i < argc; i++)
@@ -700,7 +703,7 @@ int main (int argc, char **argv)
             engine.m_beep = false;
             audio.Beep ();
         }
-        audio.m_mute = STATUS_BEEP (status) != 0;
+        audio.m_mute = STATUS_BEEP (status) != 0 || showingCredits;
         audio.Pump ();
 
         // Echo pacing and flow control (PtermHostConnection::NextRingWord)
@@ -784,8 +787,27 @@ int main (int argc, char **argv)
             logf ("touch panel %s", flags ? "on" : "off");
         }
 
+        // ---- Credits page while the OSD is open ("pause") ----
+        bool wantCredits = STATUS_OSD (status) && !STATUS_NOPAUSE (status);
+        if (wantCredits && !showingCredits)
+        {
+            credits.SetDefaultColors (colorSchemes[colorScheme][0],
+                                      colorSchemes[colorScheme][1]);
+            DrawCredits (credits);
+            shm.Flush (credits.m_pixels, 0, 511);
+            showingCredits = true;
+        }
+        else if (!wantCredits && showingCredits)
+        {
+            // back to the PLATO screen, which kept being updated
+            showingCredits = false;
+            shm.Flush (engine.m_pixels, 0, 511);
+            engine.ClearDirty ();
+            lastFlush = now;
+        }
+
         // ---- Screen update ----
-        if (engine.Dirty () &&
+        if (!showingCredits && engine.Dirty () &&
             (now - lastFlush >= 16 || conn.RingCount () == 0))
         {
             shm.Flush (engine.m_pixels, engine.m_dirtyTop, engine.m_dirtyBottom);
@@ -865,7 +887,10 @@ int main (int argc, char **argv)
             }
             else if (s.cmd == "snap")
             {
-                shm.Flush (engine.m_pixels, 0, 511);
+                if (!showingCredits)
+                {
+                    shm.Flush (engine.m_pixels, 0, 511);
+                }
                 shm.Snapshot (s.arg.c_str ());
                 if (getenv ("PLATOD_DUMPCHARS"))
                 {

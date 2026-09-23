@@ -3,7 +3,7 @@
 #   make            native build (for testing with --sim)
 #   make arm        cross build for MiSTer (runs in the plato-armhf container)
 
-SRCS = src/platod.cpp src/engine.cpp src/net.cpp src/keymap.cpp src/audio.cpp pterm/Z80.cpp
+SRCS = src/platod.cpp src/engine.cpp src/net.cpp src/keymap.cpp src/audio.cpp src/credits.cpp pterm/Z80.cpp
 CXXFLAGS = -std=c++11 -O2 -Wall -Wno-reorder -Wno-reorder-ctor -Wno-unknown-warning-option -Isrc -Ipterm
 
 build/platod: $(SRCS) src/*.h

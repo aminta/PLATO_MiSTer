@@ -57,6 +57,7 @@ localparam CONF_STR = {
 	"O[5],Numeric keypad,Arrows,Numbers;",
 	"O[8],Keyboard layout,US,Italian;",
 	"O[9],Sound,On,Off;",
+	"O[10],Pause when OSD is open,Yes,No;",
 	"-;",
 	"O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O[124:123],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
@@ -112,7 +113,12 @@ always @(posedge clk_sys) begin
 	if (reconn_req && !old_reconn) reconn_cnt <= reconn_cnt + 1'd1;
 end
 
-wire [31:0] status_word = {reconn_cnt, status[27:0]};
+// OSD visibility (for "Pause when OSD is open": platod then shows the
+// credits page), synchronized to clk_sys
+reg  [1:0] osd_sync = 0;
+always @(posedge clk_sys) osd_sync <= {osd_sync[0], OSD_STATUS};
+
+wire [31:0] status_word = {reconn_cnt, osd_sync[1], status[26:0]};
 
 ///////////////////////   VIDEO + DDR3   /////////////////////////
 
