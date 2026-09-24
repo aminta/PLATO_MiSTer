@@ -1,0 +1,6 @@
+wait 8000
+snap test/irata1.ppm
+key next
+wait 5000
+snap test/irata2.ppm
+quit

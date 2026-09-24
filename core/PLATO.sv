@@ -52,7 +52,7 @@ wire [2:0] scale = {1'b0, status[124:123]};
 localparam CONF_STR = {
 	"PLATO;;",
 	"-;",
-	"O[1],Connection,Port 5004 (auto),Port 8005 (ASCII);",
+	"O[13:12],Server,CYBER1 (classic),CYBER1 (ASCII),IRATA.ONLINE;",
 	"O[4:2],Colors,Orange,White,Green,Amber,Blue,Paper;",
 	"O[5],Numeric keypad,Arrows,Numbers;",
 	"O[8],Keyboard layout,US,Italian;",

@@ -44,7 +44,7 @@
                                 // [17:9] x, [8:0] row (0 = top)
 
 // OSD options (must match CONF_STR in PLATO.sv)
-#define STATUS_PORT(s)      (((s) >> 1) & 1)    // 0 = 5004 auto, 1 = 8005 ASCII
+#define STATUS_SERVER(s)    (((s) >> 12) & 3)   // see servers[] in platod.cpp
 #define STATUS_COLOR(s)     (((s) >> 2) & 7)    // colour scheme
 #define STATUS_NUMPAD(s)    (((s) >> 5) & 1)    // 0 = arrows, 1 = numbers
 #define STATUS_KBD(s)       (((s) >> 8) & 1)    // 0 = US, 1 = Italian

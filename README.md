@@ -7,7 +7,7 @@
 A hybrid MiSTer core that turns the MiSTer into a PLATO terminal for
 [CYBER1](https://www.cyber1.org/) (cyberserv.org), the running PLATO/CYBIS
 system with thousands of original lessons and games (Empire, Avatar, dnd,
-Moria, Oubliette...). It is based on the [PTerm](https://www.cyber1.org/pterm.asp)
+Moria, Oubliette...), and for [IRATA.ONLINE](https://irata.online/). It is based on the [PTerm](https://www.cyber1.org/pterm.asp)
 6.0.4 terminal emulator.
 
 * **FPGA side** (`core/`): shows the 512x512 PLATO screen on HDMI and VGA,
@@ -89,7 +89,9 @@ been moved recently.
 
 ### OSD options
 
-* **Connection**: port 5004 (classic, auto-detect) or port 8005 (ASCII).
+* **Server**: CYBER1 with the classic protocol (cyberserv.org port 5004,
+  auto-detect), CYBER1 with the ASCII protocol (port 8005) or IRATA.ONLINE
+  (irata.online port 8005, ASCII). Changing it reconnects.
 * **Colors**: default foreground/background, applied immediately.
 * **Numeric keypad**: PLATO arrows or numbers.
 * **Keyboard layout**: US or Italian.
@@ -99,8 +101,8 @@ been moved recently.
   session keeps running meanwhile, the sound is muted).
 * **Reset**: resets the terminal and reconnects (also the MiSTer USER button).
 
-`/media/fat/PLATO/platod.ini` can set another host or port, see
-`platod.ini.example`.
+`/media/fat/PLATO/platod.ini` can set another host and port, which then
+take the place of the Server option; see `platod.ini.example`.
 
 ### Video settings
 

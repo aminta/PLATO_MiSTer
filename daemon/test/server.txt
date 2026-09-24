@@ -1,0 +1,8 @@
+wait 5000
+status 0x1000
+wait 6000
+snap test/srv1.ppm
+status 0x2000
+wait 5000
+snap test/srv2.ppm
+quit

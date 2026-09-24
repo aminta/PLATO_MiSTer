@@ -88,6 +88,22 @@ static const u32 colorSchemes[8][2] =
 };
 
 // ----------------------------------------------------------------------------
+// Servers selectable from the OSD
+// ----------------------------------------------------------------------------
+
+static const struct
+{
+    const char *host;
+    int port;
+} servers[4] =
+{
+    { DEFAULTHOST, DefNiuPort },        // CYBER1, classic (auto-detect)
+    { DEFAULTHOST, DefAsciiPort },      // CYBER1, ASCII
+    { "irata.online", DefAsciiPort },   // IRATA.ONLINE, ASCII
+    { DEFAULTHOST, DefNiuPort },
+};
+
+// ----------------------------------------------------------------------------
 // Shared memory with the FPGA
 // ----------------------------------------------------------------------------
 
@@ -277,7 +293,7 @@ struct Config
     std::string record;
     const char  *replay;
 
-    Config () : host (DEFAULTHOST), port (0), sim (false), script (NULL),
+    Config () : host (""), port (0), sim (false), script (NULL),
                 replay (NULL) {}
 };
 
@@ -516,6 +532,7 @@ int main (int argc, char **argv)
     u32 lastHead = shm.Head ();
     u32 colorScheme = STATUS_COLOR (status);
     u32 reconnCount = STATUS_RECONN (status);
+    u32 server = STATUS_SERVER (status);
     u32 creditsCount = STATUS_CREDITS (status);
     bool wantCredits = false;
     engine.SetDefaultColors (colorSchemes[colorScheme][0],
@@ -539,12 +556,22 @@ int main (int argc, char **argv)
         // ---- Connection management ----
         if (wantConnect)
         {
+            // Host and port: platod.ini / command line, else the OSD server
+            std::string host = cfg.host;
             int port = cfg.port;
             HostConnection::Mode mode = HostConnection::both;
 
+            if (host.empty ())
+            {
+                host = servers[STATUS_SERVER (status)].host;
+                if (port == 0)
+                {
+                    port = servers[STATUS_SERVER (status)].port;
+                }
+            }
             if (port == 0)
             {
-                port = STATUS_PORT (status) ? DefAsciiPort : DefNiuPort;
+                port = DefNiuPort;
             }
             if (port == DefAsciiPort)
             {
@@ -556,16 +583,16 @@ int main (int argc, char **argv)
             snprintf (msg, sizeof (msg),
                       "PLATO terminal for MiSTer (PTerm engine)\n\n"
                       "Connecting to %s port %d...\n",
-                      cfg.host.c_str (), port);
+                      host.c_str (), port);
             engine.LocalText (msg);
             shm.Flush (engine.m_pixels, 0, 511);
             engine.ClearDirty ();
             shm.SetAlive (true);
-            logf ("connecting to %s:%d", cfg.host.c_str (), port);
+            logf ("connecting to %s:%d", host.c_str (), port);
             gswReset ();
             if (rep == NULL)
             {
-                conn.Connect (cfg.host, port, mode);
+                conn.Connect (host, port, mode);
             }
             else
             {
@@ -776,6 +803,14 @@ int main (int argc, char **argv)
         if (STATUS_RECONN (status) != reconnCount)
         {
             reconnCount = STATUS_RECONN (status);
+            conn.Close ();
+            wantConnect = true;
+            wantCredits = false;
+        }
+        if (STATUS_SERVER (status) != server)
+        {
+            // another server chosen in the OSD: connect to it
+            server = STATUS_SERVER (status);
             conn.Close ();
             wantConnect = true;
             wantCredits = false;
